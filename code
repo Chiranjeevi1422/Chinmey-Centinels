@@ -1,0 +1,88 @@
+#include <DHT.h>
+#include <SoftwareSerial.h>
+
+// MQ2 Sensor
+const int mq2Pin = A0;
+
+// Buzzer
+const int buzzerPin = 7;
+
+// Ultrasonic Sensor
+const int trigPin = 10;
+const int echoPin = 11;
+const int distanceThreshold = 10; // in cm
+
+// DHT11 Sensor
+#define DHTPIN 9
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// Bluetooth Module on Software Serial
+SoftwareSerial bluetooth(2, 3); // RX, TX
+
+void setup() {
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  Serial.begin(9600);         // For Serial Monitor
+  bluetooth.begin(9600);      // HC-05 default baud rate
+  dht.begin();
+}
+
+void loop() {
+  // Read MQ2 sensor
+  int gasLevel = analogRead(mq2Pin);
+  Serial.print("Gas Level: ");
+  Serial.println(gasLevel);
+
+  // Read distance from ultrasonic sensor
+  long duration;
+  int distance;
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  // Read DHT11 sensor
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("Failed to read from DHT sensor!");
+  } else {
+    Serial.print("Temperature: ");
+    Serial.print(temperature);
+    Serial.print(" °C, Humidity: ");
+    Serial.print(humidity);
+    Serial.println(" %");
+  }
+
+  // Buzzer logic: ON if gas level >= 30
+  if (gasLevel >= 30) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+
+  // Send sensor data over Bluetooth
+  bluetooth.print("Gas:");
+  bluetooth.print(gasLevel);
+  bluetooth.print(",Temp:");
+  bluetooth.print(temperature);
+  bluetooth.print(",Humidity:");
+  bluetooth.print(humidity);
+  bluetooth.print(",Distance:");
+  bluetooth.println(distance);
+
+  delay(1000);  // 1-second delay
+}
